@@ -4,7 +4,7 @@ IMGFILE=".vacuform/image"
 USERPWD="$PWD"
 
 print_help() {
-  echo "Usage: `basename $0` {init|configure|exec}"
+  echo "Usage: `basename $0` {init|conf|exec}"
 }
 
 initialize() {
