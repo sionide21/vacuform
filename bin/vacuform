@@ -87,7 +87,7 @@ case $COMMAND in
   exec)
     run_command $@ ;;
 
-  help|-h|-?)
+  help|-h|-?|"")
     print_help ;;
 
   *)
