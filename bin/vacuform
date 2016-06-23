@@ -16,10 +16,19 @@ initialize() {
     exit 2
   fi
 
-  docker pull $IMAGE && \
   mkdir "$BASEDIR" && \
   echo $IMAGE > $IMGFILE && \
-  echo "Created environment based on $IMAGE"
+  (NOERROR=1 configure true)
+
+  local EXIT_STATUS=$?
+
+  if [ $EXIT_STATUS -eq 0 ]; then
+    echo "Created environment based on $IMAGE"
+  else
+    error "Could not create environment. Is $IMAGE a valid docker image?"
+    rm -r $BASEDIR
+    exit $EXIT_STATUS
+  fi
 }
 
 configure() {
@@ -61,8 +70,7 @@ load_environment() {
 
 _cleanup_cid() {
   local CONTAINER=$(cat $CIDFILE)
-
-  docker rm $CONTAINER 2>&1 > /dev/null
+  [ ! -z $CONTAINER ] && docker rm $CONTAINER 2>&1 > /dev/null
   rm $CIDFILE 2>&1 > /dev/null
 }
 
@@ -71,7 +79,7 @@ _in_vacuform_root() {
 }
 
 error() {
-  echo $@ >&2
+  [ -z "$NOERROR" ] && echo $@ >&2
 }
 
 COMMAND=$1
