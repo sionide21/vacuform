@@ -1,0 +1,90 @@
+#!/bin/bash
+CIDFILE=".vacuform/cid"
+IMGFILE=".vacuform/image"
+USERPWD="$PWD"
+
+print_help() {
+  echo "Usage: `basename $0` {init|configure|exec}"
+}
+
+initialize() {
+  local IMAGE=${1:-ubuntu}
+
+  if [ -d ".vacuform" ]; then
+    error "Vacuform environment already set up"
+    exit 2
+  fi
+
+  docker pull $IMAGE && \
+  mkdir ".vacuform" && \
+  echo $IMAGE > $IMGFILE && \
+  echo "Created environment based on $IMAGE"
+}
+
+configure() {
+  load_environment
+  docker run -it -v "$USERPWD":/env -w /env --cidfile $CIDFILE $VACUFORM_IMAGE ${@:-/bin/bash}
+  local EXIT_STATUS=$?
+
+  if [ $EXIT_STATUS -ne 0 ]; then
+    error "Configuration did not exit cleanly, not updating"
+    _cleanup_cid
+    exit $EXIT_STATUS
+  fi
+
+  local CONTAINER=$(cat $CIDFILE)
+  docker commit $CONTAINER > $IMGFILE
+  _cleanup_cid
+}
+
+run_command() {
+  load_environment
+
+  docker run --rm -it --net=host -v "$USERPWD":/env -w /env $VACUFORM_IMAGE $@
+}
+
+load_environment() {
+  if [ ! -e $IMGFILE ]; then
+    error "No vacuform environment found"
+    error
+    error "Have you run 'vacuform init'?"
+    exit 4
+  fi
+
+  VACUFORM_IMAGE="$(cat $IMGFILE)"
+}
+
+_cleanup_cid() {
+  local CONTAINER=$(cat $CIDFILE)
+
+  docker rm $CONTAINER 2>&1 > /dev/null
+  rm $CIDFILE 2>&1 > /dev/null
+}
+
+error() {
+  echo $@ >&2
+}
+
+COMMAND=$1
+shift
+
+case $COMMAND in
+  init)
+    initialize $@ ;;
+
+  conf)
+    configure $@ ;;
+
+  exec)
+    run_command $@ ;;
+
+  help|-h|-?)
+    print_help ;;
+
+  *)
+    error "Unknown command: $COMMAND"
+    error
+    print_help >&2
+    exit 1
+    ;;
+esac
