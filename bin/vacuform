@@ -1,6 +1,7 @@
 #!/bin/bash
-CIDFILE=".vacuform/cid"
-IMGFILE=".vacuform/image"
+BASEDIR=".vacuform"
+CIDFILE="$BASEDIR/cid"
+IMGFILE="$BASEDIR/image"
 USERPWD="$PWD"
 
 print_help() {
@@ -10,13 +11,13 @@ print_help() {
 initialize() {
   local IMAGE=${1:-ubuntu}
 
-  if [ -d ".vacuform" ]; then
+  if _in_vacuform_root; then
     error "Vacuform environment already set up"
     exit 2
   fi
 
   docker pull $IMAGE && \
-  mkdir ".vacuform" && \
+  mkdir "$BASEDIR" && \
   echo $IMAGE > $IMGFILE && \
   echo "Created environment based on $IMAGE"
 }
@@ -44,6 +45,10 @@ run_command() {
 }
 
 load_environment() {
+  until _in_vacuform_root || [ "$PWD" == "/" ]; do
+    cd ..
+  done
+
   if [ ! -e $IMGFILE ]; then
     error "No vacuform environment found"
     error
@@ -59,6 +64,10 @@ _cleanup_cid() {
 
   docker rm $CONTAINER 2>&1 > /dev/null
   rm $CIDFILE 2>&1 > /dev/null
+}
+
+_in_vacuform_root() {
+  [ -d "$BASEDIR" ]
 }
 
 error() {
